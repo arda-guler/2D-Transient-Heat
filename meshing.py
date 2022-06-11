@@ -42,15 +42,19 @@ class mesh:
         self.cells = cells
 
     def get_cell(self, index_x, index_y, index_z):
-        return self.cells[index_x + (self.n_x * index_y) + (self.n_x * self.n_y * index_z)]
+        try:
+            return self.cells[index_z][index_y][index_x]
+        except:
+            return None
 
 # a cell is a 3D cube of material
 class cell:
-    def __init__(self, index, pos, size, mtl, temp):
+    def __init__(self, index, pos, size, mtl, temp, fixed=False):
         self.index = index
         self.pos = pos
         self.mtl = mtl
         self.T = temp
+        self.fixed = fixed
 
         # size[0] = x -- towards right
         # size[1] = y -- into secreen
@@ -104,10 +108,17 @@ class cell:
     def get_thermal_conductivity(self):
         return self.mtl.get_thermal_conductivity(self.T)
 
+    def is_fixed(self):
+        return self.fixed
+
 def create_equal_cell_mesh(n_x, n_y, n_z, L_x, L_y, L_z, mtl, T_in, T_left, T_right, T_front, T_rear):
+    
     cells = []
+    
     for z_i in range(n_z):
+        cells.append([])
         for y_i in range(n_y):
+            cells[z_i].append([])
             for x_i in range(n_x):
                 
                 new_cell_pos = [L_x * x_i,
@@ -116,19 +127,45 @@ def create_equal_cell_mesh(n_x, n_y, n_z, L_x, L_y, L_z, mtl, T_in, T_left, T_ri
 
                 # boundary conditions for boundary cells
                 if x_i == 0:
-                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_left)
+                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_left, True)
                 elif x_i == n_x - 1:
-                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_right)
+                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_right, True)
                 elif y_i == 0:
-                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_front)
+                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_front, True)
                 elif y_i == n_y - 1:
-                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_rear)
+                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_rear, True)
 
                 # inner region cell
                 else:
                     new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_in)
                     
-                cells.append(new_cell)
+                cells[z_i][y_i].append(new_cell)
+
+    new_mesh = mesh(n_x, n_y, n_z, cells)
+    return new_mesh
+
+def create_equal_cell_mesh_left_fixed(n_x, n_y, n_z, L_x, L_y, L_z, mtl, T_in, T_left):
+    
+    cells = []
+    
+    for z_i in range(n_z):
+        cells.append([])
+        for y_i in range(n_y):
+            cells[z_i].append([])
+            for x_i in range(n_x):
+                
+                new_cell_pos = [L_x * x_i,
+                                L_y * y_i,
+                                L_z * z_i]
+
+                # boundary conditions for boundary cells (left side cells)
+                if x_i == 0:
+                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_left, True)
+
+                else:
+                    new_cell = cell([x_i, y_i, z_i], new_cell_pos, [L_x, L_y, L_z], mtl, T_in)
+                    
+                cells[z_i][y_i].append(new_cell)
 
     new_mesh = mesh(n_x, n_y, n_z, cells)
     return new_mesh
